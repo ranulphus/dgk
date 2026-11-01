@@ -12,13 +12,15 @@ typedef struct plat_config {
 } plat_config;
 
 enum { PLAT_EV_NONE, PLAT_EV_QUIT, PLAT_EV_KEY_DOWN, PLAT_EV_KEY_UP, PLAT_EV_JOY_ADDED, PLAT_EV_JOY_AXIS,
-       PLAT_EV_JOY_DOWN, PLAT_EV_JOY_UP };
+       PLAT_EV_JOY_DOWN, PLAT_EV_JOY_UP, PLAT_EV_MOUSE_MOVE, PLAT_EV_MOUSE_DOWN, PLAT_EV_MOUSE_UP,
+       PLAT_EV_WHEEL, PLAT_EV_TEXT };
 
 typedef struct plat_event {
     int type;
-    int key;                                /* SDL scancode; a joystick's axis or button */
-    int value;                              /* an axis: -32768..32767 */
-    const char *name;                       /* PLAT_EV_JOY_ADDED */
+    int key;                                /* SDL scancode; a joystick's axis or button; DGK_MOUSE_* */
+    int value;                              /* an axis: -32768..32767; wheel notches */
+    int x, y, dx, dy;                       /* PLAT_EV_MOUSE_MOVE: the pointer (pixels), the motion */
+    const char *name;                       /* PLAT_EV_JOY_ADDED; PLAT_EV_TEXT: the text (UTF-8) */
 } plat_event;
 
 int      plat_open(const plat_config *c, int *width, int *height);   /* 0 on success */
@@ -41,5 +43,9 @@ void     plat_audio_unlock(void);
 const char *plat_describe(void);            /* renderer and drivers, for the log */
 int      plat_modes(int (*wh)[2], int max);  /* the screen sizes on offer, smallest first */
 void     plat_vsync(int on);
+int      plat_mouse_present(void);
+void     plat_mouse_relative(int on);
+void     plat_mouse_cursor(int show);
+void     plat_text_input(int on);
 
 #endif

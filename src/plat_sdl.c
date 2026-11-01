@@ -1,6 +1,7 @@
 /* plat_sdl.c - the platform on SDL3: DOS (the DOS-GL bridge, DOSGL's
  * tools/sdl/patches) and Linux (desktop OpenGL). */
 #include "plat.h"
+#include "dgk/app.h"
 #include "dgk/log.h"
 #include "dgk/mix.h"
 #include <SDL3/SDL.h>
@@ -16,6 +17,8 @@ static SDL_GLContext context;
 static SDL_AudioStream *audio;
 static SDL_Joystick *joystick;
 static int joystick_announced;          /* PLAT_EV_JOY_ADDED sent for it */
+static float mouse_scale = 1.0f;        /* window coordinates to pixels */
+static float rem_dx, rem_dy, rem_wheel; /* fractions of a pixel or a notch not yet reported */
 
 /* The first joystick present: SDL's DOS gameport driver finds its stick at
  * start-up without an "added" event; on Linux one may come later. */
@@ -96,6 +99,12 @@ int plat_open(const plat_config *c, int *width, int *height)
         SDL_free(ids);
     }
     SDL_GetWindowSizeInPixels(window, width, height);
+    {
+        int ww = 0, wh = 0;
+        SDL_GetWindowSize(window, &ww, &wh);
+        if (ww > 0)
+            mouse_scale = (float)*width / (float)ww;
+    }
     snprintf(describe, sizeof describe, "%s; video %s, audio %s", (const char *)glGetString(GL_RENDERER),
              SDL_GetCurrentVideoDriver(), SDL_WasInit(SDL_INIT_AUDIO) ? SDL_GetCurrentAudioDriver() : "none");
     return 0;
@@ -196,6 +205,41 @@ int plat_next_event(plat_event *e)
                 continue;
             e->type = ev.type == SDL_EVENT_JOYSTICK_BUTTON_DOWN ? PLAT_EV_JOY_DOWN : PLAT_EV_JOY_UP;
             e->key = ev.jbutton.button;
+            return 1;
+        case SDL_EVENT_MOUSE_MOTION:
+            rem_dx += ev.motion.xrel * mouse_scale;
+            rem_dy += ev.motion.yrel * mouse_scale;
+            e->type = PLAT_EV_MOUSE_MOVE;
+            e->x = (int)(ev.motion.x * mouse_scale);
+            e->y = (int)(ev.motion.y * mouse_scale);
+            e->dx = (int)rem_dx;                    /* towards zero: the rest waits */
+            e->dy = (int)rem_dy;
+            rem_dx -= (float)e->dx;
+            rem_dy -= (float)e->dy;
+            return 1;
+        case SDL_EVENT_MOUSE_BUTTON_DOWN:
+        case SDL_EVENT_MOUSE_BUTTON_UP:
+            if (ev.button.button == SDL_BUTTON_LEFT)
+                e->key = DGK_MOUSE_LEFT;
+            else if (ev.button.button == SDL_BUTTON_RIGHT)
+                e->key = DGK_MOUSE_RIGHT;
+            else if (ev.button.button == SDL_BUTTON_MIDDLE)
+                e->key = DGK_MOUSE_MIDDLE;
+            else
+                continue;
+            e->type = ev.type == SDL_EVENT_MOUSE_BUTTON_DOWN ? PLAT_EV_MOUSE_DOWN : PLAT_EV_MOUSE_UP;
+            return 1;
+        case SDL_EVENT_MOUSE_WHEEL:
+            rem_wheel += ev.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -ev.wheel.y : ev.wheel.y;
+            if ((int)rem_wheel == 0)
+                continue;
+            e->type = PLAT_EV_WHEEL;
+            e->value = (int)rem_wheel;
+            rem_wheel -= (float)e->value;
+            return 1;
+        case SDL_EVENT_TEXT_INPUT:                  /* the text lasts until the next poll */
+            e->type = PLAT_EV_TEXT;
+            e->name = ev.text.text;
             return 1;
         default:
             continue;
@@ -310,4 +354,34 @@ int plat_modes(int (*wh)[2], int max)
 void plat_vsync(int on)
 {
     SDL_GL_SetSwapInterval(on ? 1 : 0);
+}
+
+int plat_mouse_present(void)
+{
+    return SDL_HasMouse();
+}
+
+void plat_mouse_relative(int on)
+{
+    if (window && !SDL_SetWindowRelativeMouseMode(window, on != 0))
+        dgk_log("FW-WARN relative mouse: %s", SDL_GetError());
+    rem_dx = rem_dy = 0.0f;
+}
+
+void plat_mouse_cursor(int show)
+{
+    if (show)
+        SDL_ShowCursor();
+    else
+        SDL_HideCursor();
+}
+
+void plat_text_input(int on)
+{
+    if (!window)
+        return;
+    if (on)
+        SDL_StartTextInput(window);
+    else
+        SDL_StopTextInput(window);
 }

@@ -118,6 +118,30 @@ uint64_t dgk_now_us(void)
     return plat_now_us();
 }
 
+void dgk_mouse_relative(int on)
+{
+    dgk_app.mouse_relative = on != 0;
+    plat_mouse_relative(on != 0);
+}
+
+void dgk_mouse_cursor(int show)
+{
+    plat_mouse_cursor(show != 0);
+}
+
+void dgk_text_input(int on)
+{
+    plat_text_input(on != 0);
+}
+
+/* Typed text joins the tick's text; a piece that doesn't fit whole is dropped. */
+static void add_text(const char *t)
+{
+    size_t have = strlen(dgk_app.text), n = t ? strlen(t) : 0;
+    if (n && have + n < sizeof dgk_app.text)
+        memcpy(dgk_app.text + have, t, n + 1);
+}
+
 /* FW-MEM: how much the heap grew (all a DJGPP program's own memory comes
  * through sbrk: the high-water mark), and on DOS what the DPMI host has
  * left; Linux reports its peak resident size instead. */
@@ -162,7 +186,24 @@ static void events(void)
                 if (e.type == PLAT_EV_JOY_DOWN)
                     dgk_app.joy_pressed[e.key] = 1;
             }
-        } else if (e.key >= 0 && e.key < DGK_KEY_MAX) {
+        } else if (e.type == PLAT_EV_MOUSE_MOVE) {
+            dgk_app.mouse_present = 1;
+            dgk_app.mouse_x = DGK_CLAMP(e.x, 0, dgk_app.width - 1);
+            dgk_app.mouse_y = DGK_CLAMP(e.y, 0, dgk_app.height - 1);
+            dgk_app.mouse_dx += e.dx;
+            dgk_app.mouse_dy += e.dy;
+        } else if (e.type == PLAT_EV_MOUSE_DOWN || e.type == PLAT_EV_MOUSE_UP) {
+            dgk_app.mouse_present = 1;
+            if (e.key >= 0 && e.key < DGK_MOUSE_BUTTONS) {
+                dgk_app.mouse_down[e.key] = e.type == PLAT_EV_MOUSE_DOWN;
+                if (e.type == PLAT_EV_MOUSE_DOWN)
+                    dgk_app.mouse_pressed[e.key] = 1;
+            }
+        } else if (e.type == PLAT_EV_WHEEL)
+            dgk_app.mouse_wheel += e.value;
+        else if (e.type == PLAT_EV_TEXT)
+            add_text(e.name);
+        else if (e.key >= 0 && e.key < DGK_KEY_MAX) {
             if (e.type == PLAT_EV_KEY_DOWN) {
                 dgk_app.key_down[e.key] = 1;
                 dgk_app.key_pressed[e.key] = 1;
@@ -179,6 +220,9 @@ static void tick(const dgk_app_desc *d, void *u)
     dgk_app.ticks++;
     memset(dgk_app.key_pressed, 0, sizeof dgk_app.key_pressed);
     memset(dgk_app.joy_pressed, 0, sizeof dgk_app.joy_pressed);
+    memset(dgk_app.mouse_pressed, 0, sizeof dgk_app.mouse_pressed);
+    dgk_app.mouse_dx = dgk_app.mouse_dy = dgk_app.mouse_wheel = 0;
+    dgk_app.text[0] = 0;
 }
 
 int dgk_app_run(const dgk_app_desc *d, void *u, int argc, char **argv)
@@ -203,6 +247,9 @@ int dgk_app_run(const dgk_app_desc *d, void *u, int argc, char **argv)
         return opt.test ? dgk_test_end() : 1;
     }
     dgk_log("FW-START %dx%d %s", dgk_app.width, dgk_app.height, plat_describe());
+    dgk_app.mouse_present = plat_mouse_present();
+    dgk_app.mouse_x = dgk_app.width / 2;
+    dgk_app.mouse_y = dgk_app.height / 2;
     if (d->init && d->init(u) != 0) {
         dgk_test_check("init", 0, "the game did not start");
         plat_close();

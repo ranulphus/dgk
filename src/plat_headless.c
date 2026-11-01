@@ -1,9 +1,11 @@
 /* plat_headless.c - the platform for tests: an OSMesa context (Mesa's
  * software renderer, which DOS-GL's conformance tests use as the reference),
- * a virtual clock that advances one frame (1/60 s) per swap, no input and no
- * audio device. With DGK_WAV=FILE set, the mixer's output in step with the
- * virtual clock goes to FILE (16-bit mono WAV): the same samples every run. */
+ * a virtual clock that advances one frame (1/60 s) per swap, scripted input
+ * (DGK_INPUT) and no audio device. With DGK_WAV=FILE set, the mixer's
+ * output in step with the virtual clock goes to FILE (16-bit mono WAV): the
+ * same samples every run. */
 #include "plat.h"
+#include "dgk/app.h"
 #include "dgk/log.h"
 #include "dgk/mix.h"
 #include <GL/osmesa.h>
@@ -89,25 +91,58 @@ void plat_pump(void)
 }
 
 /* DGK_INPUT (or DGK_JOY): scripted input (see dgk/app.h): its items,
- * applied at their ticks (frames of the virtual clock). */
-enum { ITEM_AXIS, ITEM_BUTTON, ITEM_KEY };
-static struct joy_item { uint32_t tick; int kind, n, value; } joy_items[256];
-static int joy_count = -1, joy_next, joy_any;
+ * applied at their ticks (frames of the virtual clock). A kind the list
+ * doesn't name is read by its first letter, as before mice: a(xis),
+ * b(utton), anything else a key. */
+enum { ITEM_AXIS, ITEM_BUTTON, ITEM_KEY, ITEM_MOUSE, ITEM_MREL, ITEM_MBUTTON, ITEM_WHEEL, ITEM_TEXT };
+static struct joy_item { uint32_t tick; int kind, n, value; char text[DGK_TEXT_MAX]; } joy_items[256];
+static int joy_count = -1, joy_next, joy_any, mouse_any, text_on;
+static int mouse_x, mouse_y;
+
+static int item_kind(const char *k)
+{
+    static const char *const names[] = { "axis", "button", "key", "mouse", "mrel", "mbutton", "wheel", "text" };
+    int i;
+    for (i = 0; i < (int)DGK_ARRAY_LEN(names); i++)
+        if (!strcmp(k, names[i]))
+            return i;
+    return k[0] == 'a' ? ITEM_AXIS : k[0] == 'b' ? ITEM_BUTTON : ITEM_KEY;
+}
 
 static void joy_script(void)
 {
     const char *s = getenv("DGK_INPUT");
+    if (joy_count >= 0)
+        return;
     if (!s)
         s = getenv("DGK_JOY");
     joy_count = 0;
+    mouse_x = w / 2;
+    mouse_y = h / 2;
     while (s && *s && joy_count < (int)DGK_ARRAY_LEN(joy_items)) {
         struct joy_item *j = &joy_items[joy_count];
         char kind[8];
         unsigned long t;
-        if (sscanf(s, "%lu:%7[a-z]:%d:%d", &t, kind, &j->n, &j->value) == 4) {
+        int used = -1, ok = 0;
+        if (sscanf(s, "%lu:%7[a-z]:%n", &t, kind, &used) == 2 && used > 0) {
+            const char *rest = s + used;
             j->tick = (uint32_t)t;
-            j->kind = kind[0] == 'a' ? ITEM_AXIS : kind[0] == 'b' ? ITEM_BUTTON : ITEM_KEY;
-            joy_any |= j->kind != ITEM_KEY;
+            j->kind = item_kind(kind);
+            j->n = j->value = 0;
+            if (j->kind == ITEM_TEXT) {
+                size_t n = strcspn(rest, ",");
+                n = DGK_MIN(n, sizeof j->text - 1);
+                memcpy(j->text, rest, n);
+                j->text[n] = 0;
+                ok = 1;
+            } else if (j->kind == ITEM_WHEEL)
+                ok = sscanf(rest, "%d", &j->n) == 1;
+            else
+                ok = sscanf(rest, "%d:%d", &j->n, &j->value) == 2;
+        }
+        if (ok) {
+            joy_any |= j->kind == ITEM_AXIS || j->kind == ITEM_BUTTON;
+            mouse_any |= j->kind >= ITEM_MOUSE && j->kind <= ITEM_WHEEL;
             joy_count++;
         }
         s = strchr(s, ',');
@@ -128,15 +163,46 @@ int plat_next_event(plat_event *e)
             return 1;
         }
     }
-    if (joy_next < joy_count && joy_items[joy_next].tick <= tick) {
+    while (joy_next < joy_count && joy_items[joy_next].tick <= tick) {
         const struct joy_item *j = &joy_items[joy_next++];
-        if (j->kind == ITEM_KEY)
-            e->type = j->value ? PLAT_EV_KEY_DOWN : PLAT_EV_KEY_UP;
-        else
-            e->type = j->kind == ITEM_AXIS ? PLAT_EV_JOY_AXIS : j->value ? PLAT_EV_JOY_DOWN : PLAT_EV_JOY_UP;
         e->key = j->n;
         e->value = j->value;
-        return 1;
+        switch (j->kind) {
+        case ITEM_KEY:
+            e->type = j->value ? PLAT_EV_KEY_DOWN : PLAT_EV_KEY_UP;
+            return 1;
+        case ITEM_AXIS:
+            e->type = PLAT_EV_JOY_AXIS;
+            return 1;
+        case ITEM_BUTTON:
+            e->type = j->value ? PLAT_EV_JOY_DOWN : PLAT_EV_JOY_UP;
+            return 1;
+        case ITEM_MOUSE:
+        case ITEM_MREL:
+            e->type = PLAT_EV_MOUSE_MOVE;
+            e->dx = j->kind == ITEM_MOUSE ? j->n - mouse_x : j->n;
+            e->dy = j->kind == ITEM_MOUSE ? j->value - mouse_y : j->value;
+            if (j->kind == ITEM_MOUSE) {
+                mouse_x = j->n;
+                mouse_y = j->value;
+            }
+            e->x = mouse_x;
+            e->y = mouse_y;
+            return 1;
+        case ITEM_MBUTTON:
+            e->type = j->value ? PLAT_EV_MOUSE_DOWN : PLAT_EV_MOUSE_UP;
+            return 1;
+        case ITEM_WHEEL:
+            e->type = PLAT_EV_WHEEL;
+            e->value = j->n;
+            return 1;
+        default:                                /* text, as SDL sends it: only while text input is on */
+            if (!text_on)
+                continue;
+            e->type = PLAT_EV_TEXT;
+            e->name = j->text;
+            return 1;
+        }
     }
     return 0;
 }
@@ -228,4 +294,25 @@ int plat_modes(int (*wh)[2], int max)
 void plat_vsync(int on)
 {
     DGK_UNUSED(on);
+}
+
+int plat_mouse_present(void)
+{
+    joy_script();
+    return mouse_any;
+}
+
+void plat_mouse_relative(int on)
+{
+    DGK_UNUSED(on);
+}
+
+void plat_mouse_cursor(int show)
+{
+    DGK_UNUSED(show);
+}
+
+void plat_text_input(int on)
+{
+    text_on = on;
 }

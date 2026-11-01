@@ -12,6 +12,7 @@
 #include "dgk/log.h"
 #include "dgk/app.h"
 #include "dgk/gfx.h"
+#include "dgk/vec.h"
 #include "dgk/text.h"
 #include "dgk/mix.h"
 #include "dgk/test.h"

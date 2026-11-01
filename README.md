@@ -15,9 +15,10 @@ it pins DOSGL.
 
 | Header | What |
 |---|---|
-| `dgk/app.h` | the loop: fixed 60 Hz ticks, a draw with the tick fraction, the swap; keys and the first joystick; the command line every game shares |
+| `dgk/app.h` | the loop: fixed 60 Hz ticks, a draw with the tick fraction, the swap; keys, the mouse (pointer or relative), typed text and the first joystick; the command line every game shares |
 | `dgk/base.h` | integer types, arenas, CRC-32, FNV-1a, PCG32 |
 | `dgk/gfx.h` | camera matrices, vertex-coloured meshes, the 640x480 overlay, triangle and draw counts |
+| `dgk/vec.h` | float and double 3-vectors; doubles for positions a float can't hold, drawn relative to the camera |
 | `dgk/text.h` | bitmap text from an atlas baked by `tools/fontbake.py` |
 | `dgk/mix.h` | an integer mixer: 12 mono voices, volume and pitch |
 | `dgk/pak.h` | packs: named, CRC-checked sections loaded whole (`tools/pakw.c` writes them) |
@@ -40,6 +41,15 @@ include $(DGK)/dgk.mk
 A game's `deps.mk` holds `DGK_PIN`; its `check-deps` refuses a dgk older
 than the pin and says when dgk has moved past it. Builds that run in the
 MGA-Glide dev container mount the checkout with `MGA_EXTRA_DIR=$(DGK)`.
+
+## Checks
+
+`make test` runs the main loop on a fake platform (no SDL, no GL) and
+checks its input tick by tick, and the vectors. The games' own suites
+(Fifth Wheel's `make regress`, Loop A) cover the platforms.
+
+The mouse wheel needs a driver that reports it: SDL's on Linux does; DOS's
+INT 33h driver and GLOS's pointer don't yet.
 
 ## Licence
 
