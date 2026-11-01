@@ -1,4 +1,4 @@
-/* dgk/text.h - bitmap text from a baked atlas (kit/tools/fontbake.py): white
+/* dgk/text.h - bitmap text from a baked atlas (tools/fontbake.py): white
  * ink, a black outline and a drop shadow, tinted by the colour given, drawn
  * in the overlay (see dgk/gfx.h). */
 #ifndef DGK_TEXT_H

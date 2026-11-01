@@ -1,4 +1,4 @@
-/* dgk - the DOS-GL Kit: the game-agnostic layer under Fifth Wheel.
+/* dgk - the DOS-GL Kit: the game-agnostic layer under DOS-GL games.
  *
  * SDL3 opens the window and runs input, sound and time; drawing is OpenGL
  * 1.1 within DOS-GL's subset (compiled against DOS-GL's own <GL/gl.h> on
