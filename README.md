@@ -6,7 +6,7 @@ replays, DOSBench records and the Loop A test hooks. One source builds for
 DOS (DJGPP, SDL3 with DOS-GL's bridge, plain DOS or GLOS), Linux (SDL3,
 desktop GL) and headless tests (OSMesa, a virtual clock).
 
-It grew inside [Fifth Wheel](../FifthWheel) as `kit/` and was split out,
+It grew inside [Fifth Wheel](https://github.com/ranulphus/FifthWheel) as `kit/` and was split out,
 with its history, when a second game (Echoes of the Void, `~/Frontier`)
 needed it. Each game pins a commit of this repository in its `deps.mk`, as
 it pins DOSGL.
