@@ -8,8 +8,9 @@ desktop GL) and headless tests (OSMesa, a virtual clock).
 
 It grew inside [Fifth Wheel](https://github.com/ranulphus/FifthWheel) as `kit/` and was split out,
 with its history, when a second game (Echoes of the Void, `~/Frontier`)
-needed it. Each game pins a commit of this repository in its `deps.mk`, as
-it pins DOSGL.
+needed it. Each game builds it from the checkout beside it (`~/dgk`), on main
+as it is, as it does DOSGL and MGA-Glide: no pins (the owner's decision,
+2026-11-02: before alpha everything is on main trunk).
 
 ## Modules
 
@@ -38,9 +39,9 @@ include $(DGK)/dgk.mk
 # compile $(DGK_SRCS) and $(DGK_SDL) (or $(DGK_HEADLESS)) with $(DGK_CFLAGS)
 ```
 
-A game's `deps.mk` holds `DGK_PIN`; its `check-deps` refuses a dgk older
-than the pin and says when dgk has moved past it. Builds that run in the
-MGA-Glide dev container mount the checkout with `MGA_EXTRA_DIR=$(DGK)`.
+A game's `check-deps` checks only that the checkout is there; after a change
+here, each game's quick regression. Builds that run in the MGA-Glide dev
+container mount the checkout with `MGA_EXTRA_DIR=$(DGK)`.
 
 ## Checks
 
