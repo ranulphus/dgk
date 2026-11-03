@@ -4,6 +4,12 @@
 #ifndef DGK_TEST_H
 #define DGK_TEST_H
 
+/* A test outside dgk_app_run (which calls these itself under -test): begin
+ * reports HX-START (on DOS through the harness's shim, COM1 on), end
+ * HX-DONE with the checks' verdict, returned as an exit code. noexit keeps
+ * the Loop A run going after the program ends. */
+void dgk_test_begin(const char *name, int noexit);
+int  dgk_test_end(void);
 int  dgk_test_active(void);
 void dgk_test_check(const char *name, int ok, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 int  dgk_test_snapshot(const char *name);   /* the frame just drawn, before the swap */

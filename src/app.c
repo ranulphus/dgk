@@ -19,9 +19,6 @@
 
 dgk_app_state dgk_app;
 
-void dgk_test_begin(const char *name, int noexit);   /* test.c */
-int  dgk_test_end(void);
-
 static struct {
     int width, height, vsync, frames, test, sound, nodraw, noexit;
     int nshots;
