@@ -16,6 +16,13 @@ int dgk_save_write(const char *path, uint32_t magic, uint32_t version, const voi
  * or size, or a CRC that does not match), data untouched. */
 int dgk_save_read(const char *path, uint32_t magic, uint32_t version, void *data, uint32_t size);
 
+/* The same for a save of any size up to max: *data is allocated (free it)
+ * and *size set; on any other result *data is NULL. */
+int dgk_save_load(const char *path, uint32_t magic, uint32_t version, void **data, uint32_t *size, uint32_t max);
+/* Makes the directories along path, which ends in a directory (FOO\BAR\ or
+ * FOO/BAR): 0, or -1 when one could not be made. */
+int dgk_make_dirs(const char *path);
+
 /* The temporary file's name beside path: the extension replaced by .TMP
  * (8.3: CAREER.DAT -> CAREER.TMP); and putting it in path's place. */
 const char *dgk_temp_path(const char *path, char *buf, size_t n);

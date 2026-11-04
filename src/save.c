@@ -1,7 +1,11 @@
 /* save.c - saves (see dgk/save.h). */
 #include "dgk/save.h"
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 const char *dgk_temp_path(const char *path, char *buf, size_t n)
 {
@@ -84,4 +88,70 @@ int dgk_save_read(const char *path, uint32_t magic, uint32_t version, void *data
         return DGK_SAVE_OK;
     }
     return r;
+}
+
+static int load_one(const char *path, uint32_t magic, uint32_t version, void **data, uint32_t *size, uint32_t max)
+{
+    unsigned char head[16];
+    unsigned char *buf;
+    uint32_t n;
+    FILE *f = fopen(path, "rb");
+    *data = NULL;
+    if (!f)
+        return DGK_SAVE_MISSING;
+    if (fread(head, 1, sizeof head, f) != sizeof head || get32(head) != magic || get32(head + 4) != version ||
+        (n = get32(head + 8)) > max) {
+        fclose(f);
+        return DGK_SAVE_BAD;
+    }
+    buf = malloc(n ? n : 1);
+    if (!buf || fread(buf, 1, n, f) != n || dgk_crc32(0, buf, n) != get32(head + 12)) {
+        free(buf);
+        fclose(f);
+        return DGK_SAVE_BAD;
+    }
+    fclose(f);
+    *data = buf;
+    *size = n;
+    return DGK_SAVE_OK;
+}
+
+int dgk_save_load(const char *path, uint32_t magic, uint32_t version, void **data, uint32_t *size, uint32_t max)
+{
+    char tmp[96];
+    int r = load_one(path, magic, version, data, size, max);
+    if (r == DGK_SAVE_MISSING && load_one(dgk_temp_path(path, tmp, sizeof tmp), magic, version, data, size, max) ==
+                                     DGK_SAVE_OK) {
+        dgk_replace(tmp, path);
+        return DGK_SAVE_OK;
+    }
+    return r;
+}
+
+int dgk_make_dirs(const char *path)
+{
+    char buf[128];
+    size_t i, n = strlen(path);
+    if (n >= sizeof buf)
+        return -1;
+    memcpy(buf, path, n + 1);
+    for (i = 1; i <= n; i++)
+        if (buf[i] == '/' || buf[i] == '\\' || buf[i] == 0) {
+            char c = buf[i];
+            struct stat st;
+            buf[i] = 0;
+            if (stat(buf, &st) != 0) {
+#ifdef _WIN32
+                if (mkdir(buf) != 0 && errno != EEXIST)
+#else
+                if (mkdir(buf, 0777) != 0 && errno != EEXIST)
+#endif
+                    return -1;
+            } else if (!S_ISDIR(st.st_mode))
+                return -1;
+            buf[i] = c;
+            if (!c)
+                break;
+        }
+    return 0;
 }
