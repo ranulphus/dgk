@@ -9,7 +9,7 @@ desktop GL) and headless tests (OSMesa, a virtual clock).
 It grew inside [Fifth Wheel](https://github.com/ranulphus/FifthWheel) as `kit/` and was split out,
 with its history, when a second game (Echoes of the Void, `~/Frontier`)
 needed it. Each game builds it from the checkout beside it (`~/dgk`), on main
-as it is, as it does DOSGL and MGA-Glide: no pins (the owner's decision,
+as it is, as it does RetroGPU (DOS-GL, the HAL): no pins (the owner's decision,
 2026-11-02: before alpha everything is on main trunk).
 
 ## Modules
@@ -40,7 +40,7 @@ include $(DGK)/dgk.mk
 ```
 
 A game's `check-deps` checks only that the checkout is there; after a change
-here, each game's quick regression. Builds that run in the MGA-Glide dev
+here, each game's quick regression. Builds that run in the RetroGPU dev
 container mount the checkout with `MGA_EXTRA_DIR=$(DGK)`.
 
 ## Checks

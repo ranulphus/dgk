@@ -5,7 +5,7 @@
 #
 # then compile $(DGK_SRCS) plus one platform ($(DGK_SDL) for DOS and Linux,
 # $(DGK_HEADLESS) for OSMesa tests) with $(DGK_CFLAGS), against DOS-GL's
-# own <GL/gl.h> on every target. A game that builds inside the MGA-Glide dev
+# own <GL/gl.h> on every target. A game that builds inside the RetroGPU dev
 # container mounts this checkout there with MGA_EXTRA_DIR=$(DGK).
 
 DGK_SRCS     := $(addprefix $(DGK)/src/,base.c cfg.c log.c app.c gfx.c text.c mix.c test.c pak.c replay.c \

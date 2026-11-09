@@ -1,7 +1,8 @@
 # dgk's own checks. Games build the kit themselves (dgk.mk).
 #
 #   make test     the main loop on a fake platform, and the vectors (host compiler; no screen)
-DOSGL ?= $(HOME)/DOSGL
+RETROGPU ?= $(HOME)/RetroGPU
+DOSGL := $(RETROGPU)/gl
 HOST_CC ?= gcc
 Q ?= @
 WARN := -std=gnu99 -Wall -Wextra -Werror
