@@ -35,6 +35,8 @@ static void emit(const char *line)
 static void field(char *out, size_t n, const char *s)
 {
     size_t i;
+    if (!s)
+        s = "none";                    /* (no GL context yet: a run timing work alone) */
     for (i = 0; i + 1 < n && s[i]; i++)
         out[i] = s[i] == ' ' ? '_' : s[i];
     out[i] = 0;
