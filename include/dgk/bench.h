@@ -8,7 +8,7 @@
 
 #include "dgk/base.h"
 
-#define DGK_BENCH_MAX_FRAMES 8192
+#define DGK_BENCH_MAX_FRAMES 32768                 /* frame times kept: a whole Fifth Wheel job is 12,731 */
 
 void dgk_bench_run(const char *prog, const char *ver);   /* once per run: the H line */
 void dgk_bench_begin(const char *test, int warmup_frames);
