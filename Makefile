@@ -8,7 +8,7 @@ Q ?= @
 WARN := -std=gnu99 -Wall -Wextra -Werror
 
 GLOS ?= $(HOME)/GLOS
-TEST_SRCS := tests/test_dgk.c src/app.c src/base.c src/log.c src/mix.c src/test.c src/midi.c
+TEST_SRCS := tests/test_dgk.c src/app.c src/base.c src/log.c src/mix.c src/test.c src/midi.c src/path.c
 
 # MIDPLAY (tools/midplay.c): a MIDI file through dgk/midi.h; on the host into a WAV (and -sweep, every
 # instrument measured), on DOS live (build/dos/MIDPLAY.EXE).

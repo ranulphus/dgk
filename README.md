@@ -24,6 +24,7 @@ as it is, as it does RetroGPU (DOS-GL, the HAL): no pins (the owner's decision,
 | `dgk/mix.h` | an integer mixer: 12 mono voices, volume and pitch |
 | `dgk/midi.h` | music as General MIDI messages, wherever the game runs: the FM chip (GLOS's driver, dgk's instruments), GLOS's MIDI ports, an MPU-401, an emulated OPL3 off DOS |
 | `dgk/pak.h` | packs: named, CRC-checked sections loaded whole (`tools/pakw.c` writes them) |
+| `dgk/path.h` | a file's path on this platform: the game's data and what it writes, named once as DOS would |
 | `dgk/save.h`, `dgk/cfg.h` | saves and settings files, replaced atomically (DOS's `rename` does not overwrite) |
 | `dgk/replay.h` | recorded input per tick and a state hash a second |
 | `dgk/bench.h` | DOSBench records |

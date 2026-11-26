@@ -9,7 +9,7 @@
 # container mounts this checkout there with MGA_EXTRA_DIR=$(DGK).
 
 DGK_SRCS     := $(addprefix $(DGK)/src/,base.c cfg.c log.c app.c gfx.c text.c mix.c test.c pak.c replay.c \
-                  bench.c save.c)
+                  bench.c save.c path.c)
 DGK_SDL      := $(DGK)/src/plat_sdl.c
 DGK_HEADLESS := $(DGK)/src/plat_headless.c
 DGK_HDRS     := $(wildcard $(DGK)/include/dgk/*.h $(DGK)/src/*.h)

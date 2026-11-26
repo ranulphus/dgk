@@ -4,6 +4,7 @@
 #include "dgk/app.h"
 #include "dgk/midi.h"
 #include "dgk/mix.h"
+#include "dgk/path.h"
 #include "dgk/vec.h"
 #include <math.h>
 #include "plat.h"
@@ -254,11 +255,24 @@ static void music(void)
     CHECK(!strcmp(dgk_midi_name(), "none"), "closed, yet %s", dgk_midi_name());
 }
 
+static void paths(void)
+{
+    CHECK(!strcmp(dgk_path(DGK_DATA, "WORLD.PAK"), "WORLD.PAK"), "data here: %s", dgk_path(DGK_DATA, "WORLD.PAK"));
+    CHECK(!strcmp(dgk_path(DGK_USER, "GAME.CFG"), "game.cfg"), "user here: %s", dgk_path(DGK_USER, "GAME.CFG"));
+    dgk_path_dir(DGK_DATA, "build/data");
+    dgk_path_dir(DGK_USER, "/tmp/x");
+    CHECK(!strcmp(dgk_path(DGK_DATA, "WORLD.PAK"), "build/data/WORLD.PAK"), "data: %s", dgk_path(DGK_DATA, "WORLD.PAK"));
+    CHECK(!strcmp(dgk_path(DGK_USER, "CAREER.DAT"), "/tmp/x/career.dat"), "user: %s", dgk_path(DGK_USER, "CAREER.DAT"));
+    dgk_path_dir(DGK_DATA, NULL);
+    dgk_path_dir(DGK_USER, NULL);
+}
+
 int main(void)
 {
     loop_input();
     vectors();
     music();
+    paths();
     printf("test_dgk: %d checks, %d failures\n", checks, failures);
     return failures != 0;
 }

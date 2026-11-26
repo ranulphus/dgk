@@ -66,6 +66,12 @@ int plat_open(const plat_config *c, int *width, int *height)
     SDL_SetLogOutputFunction(sdl_log, NULL);
 #ifdef DGK_DOS
     SDL_SetLogPriority(SDL_LOG_CATEGORY_AUDIO, SDL_LOG_PRIORITY_DEBUG);
+    /* The Sound Blaster in 1,024-frame chunks: at an SB Pro's 22,050 Hz, 46 ms each (SDL's default would be 23),
+     * more room for a long frame on the minimum machine, where the sound is mixed only when the game services
+     * SDL; an SB16 at 44,100 Hz has 1,024 already. The environment's own value wins (Echoes of the Void's EV12,
+     * moved here 2026-11-26). */
+    if (!getenv("SDL_AUDIO_DEVICE_SAMPLE_FRAMES"))
+        putenv("SDL_AUDIO_DEVICE_SAMPLE_FRAMES=1024");
 #endif
     audio_rate = c->audio_rate;
     if (c->sound)
