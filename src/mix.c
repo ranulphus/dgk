@@ -20,6 +20,16 @@ typedef struct voice {
 static voice voices[DGK_MIX_VOICES];
 static uint32_t out_rate = 22050;
 static int master = 256;
+static dgk_mix_stream_fn stream_fn;
+static void *stream_user;
+
+void dgk_mix_stream(dgk_mix_stream_fn fn, void *user)
+{
+    dgk_mix_lock();
+    stream_fn = fn;
+    stream_user = user;
+    dgk_mix_unlock();
+}
 
 void dgk_mix_master(int vol_q8)
 {
@@ -132,6 +142,8 @@ void dgk_mix_render(int16_t *out, int frames)
                 }
             }
         }
+        if (stream_fn)
+            stream_fn(acc, n, stream_user);
         for (f = 0; f < n; f++) {
             int32_t a = master == 256 ? acc[f] : (int32_t)(((int64_t)acc[f] * master) >> 8);
             out[f] = (int16_t)(a > 32767 ? 32767 : a < -32768 ? -32768 : a);

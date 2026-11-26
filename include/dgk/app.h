@@ -97,6 +97,7 @@ typedef struct dgk_app_state {
     char text[DGK_TEXT_MAX];              /* typed since the last tick, UTF-8, with dgk_text_input(1) */
     int quit;                             /* set to end the loop */
     int fixed;                            /* -fixed */
+    int sound;                            /* audio on (not -nosound): what else makes sound (an FM chip) asks */
     uint32_t frame_us;                    /* the last frame, swap to swap */
 } dgk_app_state;
 

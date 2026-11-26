@@ -237,6 +237,7 @@ int dgk_app_run(const dgk_app_desc *d, void *u, int argc, char **argv)
     c.height = opt.height;
     c.vsync = opt.vsync;
     c.sound = opt.sound;
+    dgk_app.sound = opt.sound;
     c.audio_rate = 22050;
     dgk_mix_init(c.audio_rate);
     if (plat_open(&c, &dgk_app.width, &dgk_app.height) != 0) {

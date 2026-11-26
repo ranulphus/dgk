@@ -23,6 +23,11 @@ void dgk_mix_set(int voice, int vol_q8, uint32_t pitch_q16);
 void dgk_mix_master(int vol_q8);                 /* everything's volume: 256 = unity */
 void dgk_mix_stop(int voice);                    /* fades out over 3 ms, then frees it */
 void dgk_mix_render(int16_t *out, int frames);   /* the audio callback's work */
+/* A source of its own (a synthesiser: an FM chip's emulation): each render
+ * calls it for `frames` output frames, to add its samples to acc (32-bit,
+ * 16-bit scale, before the master volume), under the audio lock. NULL: none. */
+typedef void (*dgk_mix_stream_fn)(int32_t *acc, int frames, void *user);
+void dgk_mix_stream(dgk_mix_stream_fn fn, void *user);
 void dgk_mix_lock(void);                         /* held around voice changes */
 void dgk_mix_unlock(void);
 
