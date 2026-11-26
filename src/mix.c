@@ -46,6 +46,11 @@ void dgk_mix_unlock(void)
     plat_audio_unlock();
 }
 
+uint32_t dgk_mix_rate(void)
+{
+    return out_rate;
+}
+
 void dgk_mix_init(uint32_t rate)
 {
     out_rate = rate;

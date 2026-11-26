@@ -7,15 +7,40 @@ HOST_CC ?= gcc
 Q ?= @
 WARN := -std=gnu99 -Wall -Wextra -Werror
 
-TEST_SRCS := tests/test_dgk.c src/app.c src/base.c src/log.c src/mix.c src/test.c
+GLOS ?= $(HOME)/GLOS
+TEST_SRCS := tests/test_dgk.c src/app.c src/base.c src/log.c src/mix.c src/test.c src/midi.c
 
-.PHONY: test clean
+# MIDPLAY (tools/midplay.c): a MIDI file through dgk/midi.h; on the host into a WAV (and -sweep, every
+# instrument measured), on DOS live (build/dos/MIDPLAY.EXE).
+DJGPP_PREFIX ?= $(HOME)/.local/opt/djgpp-gcc1220
+DJCC := env LD_LIBRARY_PATH=$(DJGPP_PREFIX)/hostlib $(DJGPP_PREFIX)/bin/i586-pc-msdosdjgpp-gcc
+DJAR := env LD_LIBRARY_PATH=$(DJGPP_PREFIX)/hostlib $(DJGPP_PREFIX)/bin/i586-pc-msdosdjgpp-ar
+MIDPLAY_SRCS := tools/midplay.c src/midi.c src/log.c src/base.c
+build/midplay: $(MIDPLAY_SRCS) src/mix.c $(wildcard include/dgk/*.h) build/dgk/host/libdgkmidi.a
+	$(Q)$(HOST_CC) $(WARN) -O2 -Iinclude -Isrc -o $@ $(MIDPLAY_SRCS) src/mix.c build/dgk/host/libdgkmidi.a -lstdc++ -lm
+build/dgk/dos/libdgkmidi.a: FORCE
+	$(Q)$(MAKE) -s -f libs.mk OUT=build/dgk GLOS=$(GLOS) DJCC="$(DJCC)" DJAR="$(DJAR)" dos
+build/dos/MIDPLAY.EXE: $(MIDPLAY_SRCS) $(wildcard include/dgk/*.h) build/dgk/dos/libdgkmidi.a
+	@mkdir -p $(dir $@)
+	$(Q)$(DJCC) $(WARN) -O2 -march=i586 -Iinclude -Isrc -I$(GLOS)/include -o $@ $(MIDPLAY_SRCS) build/dgk/dos/libdgkmidi.a -lm
+midplay: build/midplay
+midplay-dos: build/dos/MIDPLAY.EXE
+# The FM instruments (src/fmbank.c) from tools/fmbank.py.
+fmbank:
+	$(Q)python3 tools/fmbank.py src/fmbank.c
+
+.PHONY: test clean FORCE midplay midplay-dos fmbank
 test: build/test_dgk
 	$(Q)build/test_dgk
 
-build/test_dgk: $(TEST_SRCS) $(wildcard include/dgk/*.h src/*.h)
+# The music's library (libs.mk): GLOS's FM driver from GLOS's checkout, and ymfm.
+build/dgk/host/libdgkmidi.a: FORCE
+	$(Q)$(MAKE) -s -f libs.mk OUT=build/dgk GLOS=$(GLOS) host
+build/test_dgk: $(TEST_SRCS) $(wildcard include/dgk/*.h src/*.h) build/dgk/host/libdgkmidi.a
 	@mkdir -p $(dir $@)
-	$(Q)$(HOST_CC) $(WARN) -O2 -ffp-contract=off -Iinclude -Isrc -I$(DOSGL)/include -o $@ $(TEST_SRCS) -lm
+	$(Q)$(HOST_CC) $(WARN) -O2 -ffp-contract=off -Iinclude -Isrc -I$(DOSGL)/include -o $@ $(TEST_SRCS) \
+	  build/dgk/host/libdgkmidi.a -lstdc++ -lm
+FORCE:
 
 clean:
 	rm -rf build out

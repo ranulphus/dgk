@@ -1,8 +1,11 @@
 /* test_dgk.c - the kit's own checks (make test): the main loop driven by a
  * fake platform (no SDL, no GL), so its input handling is checked tick by
- * tick, and the vector helpers. */
+ * tick, the vector helpers, and the music (GLOS's FM driver on ymfm). */
 #include "dgk/app.h"
+#include "dgk/midi.h"
+#include "dgk/mix.h"
 #include "dgk/vec.h"
+#include <math.h>
 #include "plat.h"
 #include <stdio.h>
 #include <string.h>
@@ -183,10 +186,79 @@ static void vectors(void)
           "key names");
 }
 
+/* The music: a General MIDI flute's A (440 Hz) through GLOS's FM driver and instruments on the emulated OPL3,
+ * out of the mixer. */
+static double tone(const int16_t *pcm, int n, double hz, uint32_t rate)   /* its power at hz, Goertzel's */
+{
+    double k = 2.0 * cos(2.0 * 3.14159265358979 * hz / rate), s1 = 0, s2 = 0, s0;
+    int i;
+    for (i = 0; i < n; i++) {
+        s0 = pcm[i] + k * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+    }
+    return (s1 * s1 + s2 * s2 - k * s1 * s2) / ((double)n * n);
+}
+
+static double rms(const int16_t *pcm, int n)
+{
+    double e = 0;
+    int i;
+    for (i = 0; i < n; i++)
+        e += (double)pcm[i] * pcm[i];
+    return sqrt(e / n);
+}
+
+static void music(void)
+{
+    static int16_t pcm[22050];
+    uint32_t h1, n1;
+    double on, a4, a5, below, quiet;
+    dgk_mix_init(22050);
+    CHECK(dgk_midi_open(DGK_MIDI_OFF) == DGK_MIDI_OFF, "OFF opened something");
+    CHECK(dgk_midi_open(DGK_MIDI_MPU) == DGK_MIDI_OFF, "an MPU-401 off DOS");
+    CHECK(dgk_midi_open(DGK_MIDI_AUTO) == DGK_MIDI_FM, "no FM chip: %s", dgk_midi_name());
+    dgk_midi_send(0, 0xC0, 73, 0);                   /* the flute */
+    dgk_midi_send(10, 0x90, 69, 110);                /* A, 440 Hz */
+    dgk_midi_send(600, 0x80, 69, 0);
+    dgk_midi_service(0);
+    dgk_mix_render(pcm, 2205);                       /* 100 ms: not yet due */
+    quiet = rms(pcm, 2205);
+    dgk_midi_service(100);
+    dgk_mix_render(pcm, 2205);                       /* the attack */
+    dgk_mix_render(pcm, 8820);                       /* 400 ms of it */
+    on = rms(pcm, 8820);
+    a4 = tone(pcm, 8820, 440, 22050);
+    a5 = tone(pcm, 8820, 880, 22050);
+    below = tone(pcm, 8820, 415.3, 22050);
+    CHECK(quiet < 1.0, "sound before the note: rms %.1f", quiet);
+    CHECK(on > 300, "the note too quiet: rms %.1f", on);
+    CHECK(a4 > 20 * below && a4 > a5, "not an A: 440 Hz %.0f, 415 Hz %.0f, 880 Hz %.0f", a4, below, a5);
+    dgk_midi_service(700);
+    dgk_mix_render(pcm, 22050);                      /* off: the release, then silence */
+    CHECK(rms(pcm + 17640, 4410) < 2.0, "still sounding after its release: rms %.1f", rms(pcm + 17640, 4410));
+    h1 = dgk_midi_hash(), n1 = dgk_midi_count();
+    CHECK(n1 == 3, "%u messages counted", (unsigned)n1);
+    dgk_midi_send(800, 0x90, 60, 100);               /* a note at half volume: quieter by 6 dB or so */
+    dgk_midi_volume(50);
+    dgk_midi_service(800);
+    dgk_mix_render(pcm, 4410);
+    dgk_mix_render(pcm, 8820);
+    on = rms(pcm, 8820);
+    dgk_midi_panic();
+    dgk_mix_render(pcm, 22050);
+    CHECK(rms(pcm + 17640, 4410) < 2.0, "sounding after a panic: rms %.1f", rms(pcm + 17640, 4410));
+    CHECK(on > 50, "half volume silent: rms %.1f", on);
+    CHECK(dgk_midi_hash() != h1 && dgk_midi_count() == 4, "the hash or count did not move");
+    dgk_midi_close();
+    CHECK(!strcmp(dgk_midi_name(), "none"), "closed, yet %s", dgk_midi_name());
+}
+
 int main(void)
 {
     loop_input();
     vectors();
+    music();
     printf("test_dgk: %d checks, %d failures\n", checks, failures);
     return failures != 0;
 }

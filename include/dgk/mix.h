@@ -17,6 +17,7 @@ typedef struct dgk_sound {
 } dgk_sound;
 
 void dgk_mix_init(uint32_t rate);
+uint32_t dgk_mix_rate(void);                     /* the output's frames a second */
 int  dgk_mix_play(const dgk_sound *s, int vol_q8, uint32_t pitch_q16, int flags);  /* voice, or -1; volume
                                                  changes ramp over 3 ms */
 void dgk_mix_set(int voice, int vol_q8, uint32_t pitch_q16);
@@ -25,7 +26,8 @@ void dgk_mix_stop(int voice);                    /* fades out over 3 ms, then fr
 void dgk_mix_render(int16_t *out, int frames);   /* the audio callback's work */
 /* A source of its own (a synthesiser: an FM chip's emulation): each render
  * calls it for `frames` output frames, to add its samples to acc (32-bit,
- * 16-bit scale, before the master volume), under the audio lock. NULL: none. */
+ * 16-bit scale, before the master volume), under the audio lock. NULL: none.
+ * One at a time: off DOS, dgk/midi.h's FM chip is it. */
 typedef void (*dgk_mix_stream_fn)(int32_t *acc, int frames, void *user);
 void dgk_mix_stream(dgk_mix_stream_fn fn, void *user);
 void dgk_mix_lock(void);                         /* held around voice changes */
