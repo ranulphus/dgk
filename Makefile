@@ -27,7 +27,7 @@ midplay: build/midplay
 midplay-dos: build/dos/MIDPLAY.EXE
 # The FM instruments (src/fmbank.c) from tools/fmbank.py.
 fmbank:
-	$(Q)python3 tools/fmbank.py src/fmbank.c
+	$(Q)python3 tools/fmbank.py src/fmbank.c src/fmtab.c
 
 .PHONY: test clean FORCE midplay midplay-dos fmbank
 test: build/test_dgk

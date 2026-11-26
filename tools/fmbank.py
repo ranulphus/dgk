@@ -2,7 +2,7 @@
 """fmbank.py - dgk's General MIDI instruments for the FM chip: src/fmbank.c, the bank GLOS's FM driver
 (GLOS's kernel/drv/fm.c) plays, compiled into dgk/midi.h's library in place of GLOS's own (libs.mk).
 
-  fmbank.py OUT.c
+  fmbank.py BANK.c TABLES.c
 
 Fifth Wheel's instruments (2026-11-26; the owner chose them over Freedoom's GENMIDI the same day), extended to
 every family of General MIDI's 128 programs and its 47 drum keys (35-81). Our own work, under dgk's licence.
@@ -14,14 +14,19 @@ registers 20h, 60h, 80h, E0h, its 40h key scaling (bits 6-7), its 40h level, the
 the carrier's six, a spare byte, and the note offset (a signed 16-bit number). The driver adds 12 to a note
 (DMX's octave): a voice's offset of -12 sounds a key at its own pitch, and a drum's fixed note N sounds as key
 N + 12. The driver adds velocity, CC7 and CC11 to the carrier's level (and the modulator's, when the voice
-adds the two) on General MIDI's curve, 40 log10(127 / v) dB.
+adds the two), each by fm_atten.
 
-The driver's computed tables (fm_fnum, fm_atten) are GLOS's own, in kernel/drv/fmtab.c.
+TABLES.c (src/fmtab.c) holds the driver's two computed tables, in place of GLOS's kernel/drv/fmtab.c: fm_fnum
+as GLOS computes it (A = 440 Hz at the chip's 49716 Hz), and fm_atten, a MIDI level as attenuation in the
+chip's 0.75 dB steps at half General MIDI's slope: 20 log10(127 / v) dB, not 40. On General MIDI's curve the
+FM music sat 15 dB (Fifth Wheel) to 40 dB (Echoes, playing softly) under the games' sounds in 86Box; the owner
+chose the gentler curve (2026-11-26).
 
 Times, roughly, for an operator's rates (OPL2/OPL3, key scaling off): attack to full, AR 1-15: 2.8 s, 1.4 s,
 0.7 s, 350 ms, 180 ms, 88, 44, 22, 11, 5.5, 2.8, 1.4, 0.7, 0.35, 0; decay or release over the full 96 dB,
 DR/RR 1-15: 39 s, 20 s, 9.8 s, 4.9 s, 2.5 s, 1.2 s, 614 ms, 307, 153, 77, 38, 19, 9.6, 4.8, 2.4.
 """
+import math
 import sys
 
 
@@ -416,6 +421,19 @@ def main():
     out.append("};")
     out.append("")
     open(sys.argv[1], "w").write("\n".join(out) + "\n")
+    t = ["/* src/fmtab.c - made by tools/fmbank.py: don't edit. GLOS's FM driver's computed tables, in place of",
+         " * its kernel/drv/fmtab.c: fm_fnum as GLOS computes it; fm_atten at half General MIDI's slope,",
+         " * 20 log10(127 / v) dB in 0.75 dB steps (63: silent). */",
+         "#include \"fm.h\"", "", "const u16 fm_fnum[384] = {"]
+    f = [round(440.0 * 2 ** ((i - 96) / 384.0) * 65536 / 49716) for i in range(384)]
+    for i in range(0, 384, 16):
+        t.append("    " + ",".join(str(v) for v in f[i:i + 16]) + ",")
+    t += ["};", "", "const u8 fm_atten[128] = {"]
+    a = [63] + [min(63, round(20 * math.log10(127.0 / v) / 0.75)) for v in range(1, 128)]
+    for i in range(0, 128, 16):
+        t.append("    " + ",".join(str(v) for v in a[i:i + 16]) + ",")
+    t.append("};")
+    open(sys.argv[2], "w").write("\n".join(t) + "\n")
 
 
 if __name__ == "__main__":
