@@ -32,9 +32,17 @@ enet_uint32 enet_host_random_seed(void)
     return (enet_uint32)time(NULL) ^ (enet_uint32)uclock();
 }
 
+/* (2026-11-27) Held, never back: uclock reads a tick (54.9 ms) behind when the PIT has wrapped before IRQ 0
+ * counted it (3 or 4 times a minute), as RetroGPU's sys_time_us says; ENet's round trips and resends want a
+ * clock that only goes on (Fifth Wheel's review). */
 static enet_uint32 now_ms(void)
 {
-    return (enet_uint32)(uclock() * 1000 / UCLOCKS_PER_SEC);
+    static uclock_t last;
+    uclock_t t = uclock();
+    if (t < last)
+        t = last;
+    last = t;
+    return (enet_uint32)(t * 1000 / UCLOCKS_PER_SEC);
 }
 
 enet_uint32 enet_time_get(void)

@@ -273,7 +273,7 @@ static void network(void)
 {
     char a[20], buf[16];
     uint32_t from = 0;
-    int port = 0, s = -1, t, n, p, from_port = 0, k, server_saw = 0, client_saw = 0;
+    int port, s, t, n, from_port = 0, k, server_saw = 0, client_saw = 0;
     ENetAddress addr;
     ENetHost *server, *client;
     ENetEvent ev;
@@ -281,10 +281,9 @@ static void network(void)
     CHECK(dgk_net_start() == 0, "ENet did not start");
     dgk_net_addr(DGK_NET_LOOPBACK, a, sizeof a);
     CHECK(!strcmp(a, "127.0.0.1"), "loopback as %s", a);
-    for (p = 47811; p < 47821 && s < 0; p++)        /* (a free port near 47811) */
-        if ((s = dgk_udp_open(p)) >= 0)
-            port = p;
-    CHECK(s >= 0, "no UDP port to bind");
+    s = dgk_udp_open(DGK_UDP_ANY);      /* (a free port of the system's: two runs at once don't share one) */
+    port = dgk_udp_port(s);
+    CHECK(s >= 0 && port > 0, "no UDP port bound (%d, port %d)", s, port);
     t = dgk_udp_open(0);
     CHECK(t >= 0, "no UDP sender");
     CHECK(dgk_udp_recv(s, buf, sizeof buf, NULL, NULL, 0) == 0, "a datagram before any was sent");
@@ -296,11 +295,12 @@ static void network(void)
     dgk_udp_close(s);
     /* ENet over loopback: a server and a client connect, each told by dgk_net_service */
     addr.host = ENET_HOST_ANY;
-    addr.port = (enet_uint16)(port + 1);
+    addr.port = 0;                      /* (the system's choice: ENet reads it back into the host's address) */
     server = enet_host_create(&addr, 2, 1, 0, 0);
     client = enet_host_create(NULL, 1, 1, 0, 0);
-    CHECK(server && client, "ENet hosts not made");
+    CHECK(server && client && server->address.port, "ENet hosts not made");
     if (server && client) {
+        addr.port = server->address.port;
         enet_address_set_host(&addr, "127.0.0.1");
         CHECK(enet_host_connect(client, &addr, 1, 0) != NULL, "no peer");
         for (k = 0; k < 100 && !(server_saw && client_saw); k++) {

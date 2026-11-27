@@ -32,9 +32,12 @@ uint32_t dgk_net_ms(void);              /* ENet's clock in ms (0 without a netwo
 /* enet_host_service, ms at most (0: what has come), in slices on DOS with dgk serviced between: > 0 an event */
 int dgk_net_service(ENetHost *host, ENetEvent *event, int ms);
 
-/* UDP: a non-blocking socket, broadcasts allowed; bound to port (shared with others, SO_REUSEADDR) unless 0
- * (a sender's: the system picks). -1: none (or no network). */
+/* UDP: a non-blocking socket, broadcasts allowed; bound to port (shared with others, SO_REUSEADDR), or with
+ * DGK_UDP_ANY to a free port of the system's (dgk_udp_port says which), or 0: a sender's (the system picks
+ * when it first sends). -1: none (or no network). */
+#define DGK_UDP_ANY (-1)
 int  dgk_udp_open(int port);
+int  dgk_udp_port(int s);               /* the port it is bound to (0: none yet) */
 int  dgk_udp_send(int s, uint32_t addr, int port, const void *data, int n);     /* bytes sent, -1 */
 /* One datagram, waiting up to ms for it (0: none waited for): its length (cut to max), 0 none, -1 an error;
  * where it came from in *addr and *port (either may be NULL). */

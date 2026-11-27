@@ -89,10 +89,11 @@ int dgk_udp_open(int port)
     setsockopt(s, SOL_SOCKET, SO_BROADCAST, &on, sizeof on);
     if (port) {
         struct sockaddr_in sa;
-        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
+        if (port > 0)
+            setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on);
         memset(&sa, 0, sizeof sa);
         sa.sin_family = AF_INET;
-        sa.sin_port = htons((uint16_t)port);
+        sa.sin_port = htons((uint16_t)(port > 0 ? port : 0));     /* (DGK_UDP_ANY: 0, the system's choice) */
         sa.sin_addr.s_addr = htonl(INADDR_ANY);
         if (bind(s, (struct sockaddr *)&sa, sizeof sa) != 0) {
             close(s);
@@ -101,6 +102,15 @@ int dgk_udp_open(int port)
     }
     fcntl(s, F_SETFL, O_NONBLOCK);
     return s;
+}
+
+int dgk_udp_port(int s)
+{
+    struct sockaddr_in sa;
+    socklen_t l = sizeof sa;
+    if (s < 0 || getsockname(s, (struct sockaddr *)&sa, &l) != 0)
+        return 0;
+    return ntohs(sa.sin_port);
 }
 
 int dgk_udp_send(int s, uint32_t addr, int port, const void *data, int n)
