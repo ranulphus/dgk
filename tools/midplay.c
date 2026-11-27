@@ -1,9 +1,9 @@
 /* midplay.c - a standard MIDI file through dgk/midi.h (make midplay; make midplay-dos):
  *
  *   MIDPLAY FILE.MID ...                 DOS: each file in turn, live on whatever dgk/midi.h finds (an FM chip
- *                                        with dgk's instruments, GLOS's ports, an MPU-401); Esc skips a file
+ *                                        with GLOS's instruments, its ports, an MPU-401); Esc skips a file
  *   midplay FILE.MID OUT.WAV [SECONDS [CHANNELS]]
- *                                        host: the file through GLOS's driver, dgk's bank and ymfm, into a WAV
+ *                                        host: the file through GLOS's driver and instruments and ymfm, into a WAV
  *                                        (mono, 44,100 Hz); SECONDS: at most that long (0: all of it); CHANNELS:
  *                                        only those notes heard (1-16, comma-separated: a part on its own)
  *   midplay -sweep OUT.WAV               host: every program (C3, C4, C5, each 0.7 s) and every drum key (35-81)

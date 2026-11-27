@@ -27,11 +27,7 @@ build/dos/MIDPLAY.EXE: $(MIDPLAY_SRCS) $(wildcard include/dgk/*.h) build/dgk/dos
 	  build/dgk/dos/libdgkmidi.a build/dgk/dos/libdgkglos.a -lm
 midplay: build/midplay
 midplay-dos: build/dos/MIDPLAY.EXE
-# The FM instruments (src/fmbank.c) from tools/fmbank.py.
-fmbank:
-	$(Q)python3 tools/fmbank.py src/fmbank.c src/fmtab.c
-
-.PHONY: test clean FORCE midplay midplay-dos fmbank
+.PHONY: test clean FORCE midplay midplay-dos
 test: build/test_dgk
 	$(Q)build/test_dgk
 

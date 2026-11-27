@@ -22,7 +22,7 @@ as it is, as it does RetroGPU (DOS-GL, the HAL): no pins (the owner's decision,
 | `dgk/vec.h` | float and double 3-vectors; doubles for positions a float can't hold, drawn relative to the camera |
 | `dgk/text.h` | bitmap text from an atlas baked by `tools/fontbake.py` |
 | `dgk/mix.h` | an integer mixer: 12 mono voices, volume and pitch |
-| `dgk/midi.h` | music as General MIDI messages, wherever the game runs: the FM chip (GLOS's driver, dgk's instruments), GLOS's MIDI ports, an MPU-401, an emulated OPL3 off DOS |
+| `dgk/midi.h` | music as General MIDI messages, wherever the game runs: the FM chip (GLOS's driver and instruments), GLOS's MIDI ports, an MPU-401, an emulated OPL3 off DOS |
 | `dgk/net.h` | the network, wherever the game runs: ENet for the game's links and UDP for finding games on the LAN, on GLOS's sockets, the host's, or none on plain DOS; what there is and why not |
 | `dgk/pak.h` | packs: named, CRC-checked sections loaded whole (`tools/pakw.c` writes them) |
 | `dgk/path.h` | a file's path on this platform: the game's data and what it writes, named once as DOS would |
@@ -49,7 +49,7 @@ container mount the checkout with `MGA_EXTRA_DIR=$(DGK)`.
 ## Music
 
 `dgk/midi.h` (`$(DGK_MIDI)`) needs a library that `libs.mk` builds into the
-game's build directory: `dos` (GLOS's FM driver with dgk's instruments and
+game's build directory: `dos` (GLOS's FM driver with its instruments and
 GLOS's sdk/fm in `libdgkmidi.a`, GLOS's own library in `libdgkglos.a`, both
 compiled from GLOS's checkout beside this one: `GLOS`, no copies; link order
 under Network), or `stage` then `host` (the same driver and instruments
@@ -58,10 +58,10 @@ with `-lstdc++`). On DOS the music's file wants `$(DGK_MIDI_DOS_CFLAGS)`.
 No port is probed on a guess: the FM chip only when BLASTER is set, an
 MPU-401 only at BLASTER's P.
 
-The instruments (`src/fmbank.c`, from `tools/fmbank.py`: `make fmbank`) are
-Fifth Wheel's, extended to all 128 General MIDI programs and the 47 drums,
-in GENMIDI's layout for GLOS's driver, which reads them in place of its
-Freedoom bank. `make midplay` builds MIDPLAY for the host (a MIDI file into
+The instruments are GLOS's (`kernel/drv/fmbank.c` and the loudness curve in
+`kernel/drv/fmtab.c`, from its `tools/mkfmbank.py`): Fifth Wheel's, extended
+to all 128 General MIDI programs and the 47 drums. Change them there; dgk
+keeps no copy. `make midplay` builds MIDPLAY for the host (a MIDI file into
 a WAV; `-sweep`: every instrument's level, pitch and brightness), `make
 midplay-dos` for DOS (a MIDI file live on the chip).
 
@@ -96,7 +96,7 @@ takes only what is used, so a game without a network carries none of it.
 
 `make test` runs the main loop on a fake platform (no SDL, no GL) and
 checks its input tick by tick, the vectors, the music (a General MIDI
-flute's A through GLOS's driver, dgk's instruments and ymfm), and the
+flute's A through GLOS's driver and instruments and ymfm), and the
 network on loopback (UDP both ways; ENet's server and client connecting
 through `dgk_net_service`), with no LAN needed. The games' own suites
 (Fifth Wheel's `make regress`, Echoes' EV11 and its GLOS steps, Loop A)
