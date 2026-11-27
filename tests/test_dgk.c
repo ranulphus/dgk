@@ -1,9 +1,10 @@
 /* test_dgk.c - the kit's own checks (make test): the main loop driven by a
  * fake platform (no SDL, no GL), so its input handling is checked tick by
- * tick, the vector helpers, and the music (GLOS's FM driver on ymfm). */
+ * tick, the vector helpers, the music (GLOS's FM driver on ymfm) and the network (loopback). */
 #include "dgk/app.h"
 #include "dgk/midi.h"
 #include "dgk/mix.h"
+#include "dgk/net.h"
 #include "dgk/path.h"
 #include "dgk/vec.h"
 #include <math.h>
@@ -267,12 +268,62 @@ static void paths(void)
     dgk_path_dir(DGK_USER, NULL);
 }
 
+/* The network (dgk/net.h) on the host, loopback only: no LAN needed, a second or less. */
+static void network(void)
+{
+    char a[20], buf[16];
+    uint32_t from = 0;
+    int port = 0, s = -1, t, n, p, from_port = 0, k, server_saw = 0, client_saw = 0;
+    ENetAddress addr;
+    ENetHost *server, *client;
+    ENetEvent ev;
+    CHECK(dgk_net_status() == DGK_NET_OK, "the host's network: status %d", dgk_net_status());
+    CHECK(dgk_net_start() == 0, "ENet did not start");
+    dgk_net_addr(DGK_NET_LOOPBACK, a, sizeof a);
+    CHECK(!strcmp(a, "127.0.0.1"), "loopback as %s", a);
+    for (p = 47811; p < 47821 && s < 0; p++)        /* (a free port near 47811) */
+        if ((s = dgk_udp_open(p)) >= 0)
+            port = p;
+    CHECK(s >= 0, "no UDP port to bind");
+    t = dgk_udp_open(0);
+    CHECK(t >= 0, "no UDP sender");
+    CHECK(dgk_udp_recv(s, buf, sizeof buf, NULL, NULL, 0) == 0, "a datagram before any was sent");
+    CHECK(dgk_udp_send(t, DGK_NET_LOOPBACK, port, "ping", 4) == 4, "send failed");
+    n = dgk_udp_recv(s, buf, sizeof buf, &from, &from_port, 500);
+    CHECK(n == 4 && !memcmp(buf, "ping", 4) && from == DGK_NET_LOOPBACK && from_port > 0,
+          "got %d bytes from %08x:%d", n, (unsigned)from, from_port);
+    dgk_udp_close(t);
+    dgk_udp_close(s);
+    /* ENet over loopback: a server and a client connect, each told by dgk_net_service */
+    addr.host = ENET_HOST_ANY;
+    addr.port = (enet_uint16)(port + 1);
+    server = enet_host_create(&addr, 2, 1, 0, 0);
+    client = enet_host_create(NULL, 1, 1, 0, 0);
+    CHECK(server && client, "ENet hosts not made");
+    if (server && client) {
+        enet_address_set_host(&addr, "127.0.0.1");
+        CHECK(enet_host_connect(client, &addr, 1, 0) != NULL, "no peer");
+        for (k = 0; k < 100 && !(server_saw && client_saw); k++) {
+            if (dgk_net_service(server, &ev, 5) > 0 && ev.type == ENET_EVENT_TYPE_CONNECT)
+                server_saw = 1;
+            if (dgk_net_service(client, &ev, 5) > 0 && ev.type == ENET_EVENT_TYPE_CONNECT)
+                client_saw = 1;
+        }
+        CHECK(server_saw && client_saw, "ENet over loopback: server %d, client %d", server_saw, client_saw);
+    }
+    if (client)
+        enet_host_destroy(client);
+    if (server)
+        enet_host_destroy(server);
+}
+
 int main(void)
 {
     loop_input();
     vectors();
     music();
     paths();
+    network();
     printf("test_dgk: %d checks, %d failures\n", checks, failures);
     return failures != 0;
 }

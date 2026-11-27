@@ -23,6 +23,7 @@ as it is, as it does RetroGPU (DOS-GL, the HAL): no pins (the owner's decision,
 | `dgk/text.h` | bitmap text from an atlas baked by `tools/fontbake.py` |
 | `dgk/mix.h` | an integer mixer: 12 mono voices, volume and pitch |
 | `dgk/midi.h` | music as General MIDI messages, wherever the game runs: the FM chip (GLOS's driver, dgk's instruments), GLOS's MIDI ports, an MPU-401, an emulated OPL3 off DOS |
+| `dgk/net.h` | the network, wherever the game runs: ENet for the game's links and UDP for finding games on the LAN, on GLOS's sockets, the host's, or none on plain DOS; what there is and why not |
 | `dgk/pak.h` | packs: named, CRC-checked sections loaded whole (`tools/pakw.c` writes them) |
 | `dgk/path.h` | a file's path on this platform: the game's data and what it writes, named once as DOS would |
 | `dgk/save.h`, `dgk/cfg.h` | saves and settings files, replaced atomically (DOS's `rename` does not overwrite) |
@@ -48,9 +49,10 @@ container mount the checkout with `MGA_EXTRA_DIR=$(DGK)`.
 ## Music
 
 `dgk/midi.h` (`$(DGK_MIDI)`) needs a library that `libs.mk` builds into the
-game's build directory: `dos` (GLOS's FM driver with dgk's instruments,
-GLOS's sdk/fm and libglos, compiled from GLOS's checkout beside this one:
-`GLOS`, no copies), or `stage` then `host` (the same driver and instruments
+game's build directory: `dos` (GLOS's FM driver with dgk's instruments and
+GLOS's sdk/fm in `libdgkmidi.a`, GLOS's own library in `libdgkglos.a`, both
+compiled from GLOS's checkout beside this one: `GLOS`, no copies; link order
+under Network), or `stage` then `host` (the same driver and instruments
 on ymfm's OPL3; staged because the dev container sees no GLOS checkout; link
 with `-lstdc++`). On DOS the music's file wants `$(DGK_MIDI_DOS_CFLAGS)`.
 No port is probed on a guess: the FM chip only when BLASTER is set, an
@@ -63,12 +65,42 @@ Freedoom bank. `make midplay` builds MIDPLAY for the host (a MIDI file into
 a WAV; `-sweep`: every instrument's level, pitch and brightness), `make
 midplay-dos` for DOS (a MIDI file live on the chip).
 
+## Network
+
+`dgk/net.h` (`$(DGK_NET)`, compiled with `$(DGK_NET_CFLAGS)`, on DOS
+`$(DGK_NET_DOS_CFLAGS)` too) and `libs.mk`'s `libdgknet.a`: ENet 1.3.18
+(`third_party/enet`, unchanged) for a game's links, on GLOS's sockets on DOS
+(`src/enet_glos.c` in place of ENet's `unix.c`) and the host's elsewhere, and
+small UDP calls (`dgk_udp_*`) for finding games on the LAN, so a game needs
+no socket headers. `dgk_net_status()` says what there is:
+
+- `DGK_NET_OK`: ENet and UDP work (Linux, headless; GLOS 2.2 or later with
+  its UDP, as an app or, from GLOS 2.3, full screen);
+- `DGK_NET_NONE`: plain DOS. No packet driver is looked for and no port or
+  interrupt is touched: nothing on a guess, as with the music;
+- `DGK_NET_OLD`: GLOS before 2.2 (no UDP);
+- `DGK_NET_WINDOW`: GLOS 2.2 full screen (its sockets are an app's).
+
+Each game words these for its players. On DOS a wait on the network
+(`dgk_net_service`, `dgk_udp_recv` with a time) goes in slices of 4 ms with
+dgk serviced between: under GLOS a socket call that waits holds the
+program's own interrupt handlers (the timer's, the keyboard's, the sound's)
+until it returns.
+
+On DOS a game links `libs.mk`'s libraries in this order: `libdgkmidi.a
+libdgknet.a libdgkglos.a`. GLOS's own library (`sdk/libglos`'s `glos.c` and
+`socket.c`, from GLOS's checkout) is the last, shared by the two; the linker
+takes only what is used, so a game without a network carries none of it.
+
 ## Checks
 
 `make test` runs the main loop on a fake platform (no SDL, no GL) and
-checks its input tick by tick, the vectors, and the music (a General MIDI
-flute's A through GLOS's driver, dgk's instruments and ymfm). The games' own suites
-(Fifth Wheel's `make regress`, Loop A) cover the platforms.
+checks its input tick by tick, the vectors, the music (a General MIDI
+flute's A through GLOS's driver, dgk's instruments and ymfm), and the
+network on loopback (UDP both ways; ENet's server and client connecting
+through `dgk_net_service`), with no LAN needed. The games' own suites
+(Fifth Wheel's `make regress`, Echoes' EV11 and its GLOS steps, Loop A)
+cover the platforms.
 
 The mouse wheel needs a driver that reports it: SDL's on Linux does; DOS's
 INT 33h driver and GLOS's pointer don't yet.
@@ -76,4 +108,6 @@ INT 33h driver and GLOS's pointer don't yet.
 ## Licence
 
 MIT (`LICENSE`). `third_party/ymfm`: BSD-3-Clause (its `LICENSE`), in the
-host builds only. GLOS's driver, built from GLOS's checkout: MIT.
+host builds only. `third_party/enet`: MIT (its `LICENSE`; `README.md` there
+says where it came from). GLOS's driver and library, built from GLOS's
+checkout: MIT.
